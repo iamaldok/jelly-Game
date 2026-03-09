@@ -39,19 +39,23 @@ const needs = { hunger: 80, sleep: 90, cs: 30, horniness: 20, money: 50, sanity:
 function clampNeeds() { for (let k in needs) needs[k] = Math.max(0, Math.min(100, needs[k])); }
 
 const player = {
-    x: 380, y: 380, tx: 380, ty: 380,
+    x: 350, y: 400, tx: 350, ty: 400,
     state: "idle", speed: 150, beardLevel: 0,
     animTimer: 0, actionTimer: 0, actionDuration: 0
 };
 
-// Furniture positions (relative to game area)
+// Room layout: side-view. Wall top ~40%, floor bottom ~60%
+// All Y coords relative to game area. Floor starts at y=220
+const FLOOR_Y = 220;
+
+// Furniture positions (relative to game area) - side view
 const furniture = {
-    pc:     { x: 200, y: 180, w: 140, h: 100, ix: 230, iy: 300 },
-    bed:    { x: 580, y: 250, w: 140, h: 130, ix: 520, iy: 350 },
-    fridge: { x: 50,  y: 250, w: 70,  h: 90,  ix: 90,  iy: 360 },
-    poster: { x: 420, y: 70,  w: 80,  h: 100, ix: 420, iy: 250 },
-    poster2:{ x: 560, y: 70,  w: 70,  h: 90,  ix: 560, iy: 250 },
-    phone:  { x: 350, y: 420, w: 40,  h: 40,  ix: 350, iy: 380 },
+    pc:     { x: 160, y: 200, w: 160, h: 160, ix: 200, iy: 420 },
+    bed:    { x: 560, y: 220, w: 160, h: 140, ix: 500, iy: 420 },
+    fridge: { x: 30,  y: 180, w: 60,  h: 120, ix: 60,  iy: 420 },
+    poster: { x: 380, y: 40,  w: 90,  h: 120, ix: 380, iy: 420 },
+    poster2:{ x: 530, y: 40,  w: 70,  h: 100, ix: 530, iy: 420 },
+    phone:  { x: 340, y: 440, w: 40,  h: 30,  ix: 340, iy: 420 },
 };
 
 const achievements = [
@@ -102,262 +106,352 @@ function getTimeStr() {
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-// --- Draw the room (pixel art style) ---
+// --- Draw the room (side-view, consistent 2D) ---
 function drawRoom() {
     const gx = GAME_X, gy = GAME_Y, gw = GAME_W, gh = GAME_H;
+    const floorAbs = gy + FLOOR_Y; // absolute floor line
 
-    // Room background - dark moody room
-    px(gx, gy, gw, gh, "#1e1828");
+    // === BACK WALL ===
+    px(gx, gy, gw, FLOOR_Y, "#2a2238");
+    // Wall texture - subtle brick lines
+    for (let wy = 0; wy < FLOOR_Y; wy += 30) {
+        px(gx, gy + wy, gw, 1, "rgba(0,0,0,0.15)");
+    }
+    // Baseboard
+    px(gx, floorAbs - 8, gw, 8, "#3a2830");
 
-    // Back wall
-    px(gx, gy, gw, gh * 0.38, "#2a2238");
-
-    // Floor - darker with subtle grid
-    const floorY = gy + gh * 0.38;
-    px(gx, floorY, gw, gh * 0.62, "#1a1620");
-    // Floor texture
-    for (let fx = 0; fx < gw; fx += 40) {
-        for (let fy = 0; fy < gh * 0.62; fy += 40) {
-            const shade = ((fx / 40 + fy / 40) % 2 === 0) ? 2 : 0;
-            px(gx + fx, floorY + fy, 40, 40, `rgba(255,255,255,${0.01 + shade * 0.005})`);
-        }
+    // === FLOOR ===
+    px(gx, floorAbs, gw, gh - FLOOR_Y, "#1a1620");
+    // Floor planks
+    for (let fy = 0; fy < gh - FLOOR_Y; fy += 20) {
+        px(gx, floorAbs + fy, gw, 1, "rgba(255,255,255,0.03)");
     }
 
-    // Wall-floor line
-    px(gx, floorY - 2, gw, 4, "#141020");
-
-    // --- Window (back wall, with curtains) ---
-    const winX = gx + 80, winY = gy + 20, winW = 100, winH = 110;
-    px(winX, winY, winW, winH, "#283848"); // window frame
-    px(winX + 4, winY + 4, winW - 8, winH - 8, "#384858"); // glass (dim)
-    // Curtains
-    px(winX - 15, winY, 20, winH + 10, "#4a3050");
-    px(winX + winW - 5, winY, 20, winH + 10, "#4a3050");
-    // Curtain folds
-    for (let i = 0; i < 4; i++) {
-        px(winX - 12, winY + i * 28, 14, 2, "#3a2040");
-        px(winX + winW - 2, winY + i * 28, 14, 2, "#3a2040");
+    // === WINDOW (on wall, left side) ===
+    const winX = gx + 55, winY = gy + 20;
+    px(winX, winY, 110, 140, "#3a3848"); // frame
+    px(winX + 5, winY + 5, 100, 130, "#2a3848"); // glass
+    px(winX + 5, winY + 5, 48, 130, "#283040"); // left pane
+    px(winX + 57, winY + 5, 48, 130, "#283040"); // right pane
+    // Window cross
+    px(winX + 53, winY + 5, 4, 130, "#4a4858");
+    px(winX + 5, winY + 68, 100, 4, "#4a4858");
+    // Curtains (hanging from top)
+    // Left curtain
+    for (let cy = 0; cy < 170; cy += 4) {
+        const cw = 28 + Math.sin(cy * 0.08) * 4;
+        px(winX - 22, winY - 10 + cy, cw, 4, cy % 8 < 4 ? "#5a3858" : "#4a2848");
     }
-
-    // --- PC DESK + MONITOR ---
-    const pcX = gx + 120, pcY = gy + 90;
-    // Desk
-    px(pcX - 20, pcY + 60, 180, 12, "#5a4030"); // desk top
-    px(pcX, pcY + 72, 8, 50, "#4a3020"); // desk leg left
-    px(pcX + 140, pcY + 72, 8, 50, "#4a3020"); // desk leg right
-    // Monitor
-    px(pcX + 30, pcY - 10, 90, 65, "#1a1a2a"); // monitor frame
-    px(pcX + 34, pcY - 6, 82, 57, "#2a4a2a"); // screen (CS greenish)
-    // CS crosshair on screen
-    if (player.state === "gaming") {
-        px(pcX + 34, pcY - 6, 82, 57, "#1a3a1a");
-        // Simple FPS view
-        px(pcX + 50, pcY + 25, 48, 25, "#6a5a3a"); // ground
-        px(pcX + 50, pcY + 5, 48, 20, "#4a6a8a"); // sky
-        // Crosshair
-        px(pcX + 73, pcY + 15, 2, 10, "#fff");
-        px(pcX + 68, pcY + 19, 12, 2, "#fff");
-    } else if (player.state === "working") {
-        px(pcX + 34, pcY - 6, 82, 57, "#1a2a3a");
-        // Code lines
-        for (let i = 0; i < 6; i++) {
-            const lw = 20 + seededRand(i * 33) * 40;
-            px(pcX + 40, pcY + 2 + i * 8, lw, 3, i % 2 === 0 ? "#4a8aca" : "#6aca6a");
-        }
+    // Right curtain
+    for (let cy = 0; cy < 170; cy += 4) {
+        const cw = 28 + Math.sin(cy * 0.08 + 1) * 4;
+        px(winX + 105 - cw + 22, winY - 10 + cy, cw, 4, cy % 8 < 4 ? "#5a3858" : "#4a2848");
     }
+    // Curtain rod
+    px(winX - 30, winY - 14, 170, 4, "#5a5060");
+    circle(winX - 30, winY - 12, 4, "#6a6070");
+    circle(winX + 140, winY - 12, 4, "#6a6070");
+
+    // === PC DESK + MONITOR (left area, against wall) ===
+    const deskX = gx + 100, deskY = floorAbs;
+    // Desk legs
+    px(deskX, deskY, 6, 80, "#5a4030");
+    px(deskX + 164, deskY, 6, 80, "#5a4030");
+    // Desk surface (sits on wall line)
+    px(deskX - 5, deskY - 4, 180, 8, "#6a5038");
+    px(deskX - 5, deskY - 6, 180, 4, "#7a6048");
+    // Shelf above desk
+    px(deskX + 10, deskY - 80, 140, 5, "#5a4030");
+
+    // Monitor (on desk)
+    const monX = deskX + 40, monY = deskY - 80;
+    px(monX, monY, 100, 72, "#1a1a2a"); // bezel
+    px(monX + 4, monY + 4, 92, 60, "#0a1a0a"); // screen default
     // Monitor stand
-    px(pcX + 65, pcY + 52, 18, 10, "#2a2a2a");
-    // Keyboard - RGB
-    for (let i = 0; i < 10; i++) {
-        const hue = (Date.now() / 30 + i * 36) % 360;
-        px(pcX + 30 + i * 10, pcY + 65, 9, 5, `hsl(${hue},100%,50%)`);
+    px(monX + 40, monY + 72, 20, 8, "#2a2a2a");
+    px(monX + 35, monY + 78, 30, 4, "#3a3a3a");
+    // Screen content
+    if (player.state === "gaming") {
+        // CS view
+        px(monX + 4, monY + 4, 92, 30, "#3a5a7a"); // sky
+        px(monX + 4, monY + 34, 92, 30, "#6a5a3a"); // ground
+        // Crosshair
+        px(monX + 48, monY + 22, 2, 16, "#0f0");
+        px(monX + 40, monY + 29, 18, 2, "#0f0");
+        // Gun
+        px(monX + 55, monY + 45, 30, 12, "#4a4a4a");
+        txt("CS:GO", monX + 50, monY + 16, "#0f0", 8, "center", true);
+    } else if (player.state === "working") {
+        px(monX + 4, monY + 4, 92, 60, "#0a1520");
+        for (let i = 0; i < 7; i++) {
+            const lw = 15 + seededRand(i * 33) * 50;
+            const lc = ["#4a8aca", "#6aca6a", "#caca4a", "#ca6a8a"][i % 4];
+            px(monX + 10, monY + 10 + i * 8, lw, 4, lc);
+        }
+    } else {
+        // Idle screen - desktop
+        px(monX + 4, monY + 4, 92, 60, "#0a2010");
+        txt(">_", monX + 14, monY + 30, "#0f0", 12, "left");
     }
-    // Mouse
-    px(pcX + 140, pcY + 65, 10, 7, "#3a3a3a");
-    // iFood box on desk
-    px(pcX - 10, pcY + 45, 35, 20, "#e83030");
-    txt("iFood", pcX - 5, pcY + 60, "#fff", 8, "left", true);
-    // Energy drink cans
-    px(pcX + 150, pcY + 50, 8, 14, "#d03030");
-    px(pcX + 160, pcY + 53, 8, 14, "#30a030");
-    // Chair
-    px(pcX + 50, pcY + 100, 50, 10, "#2a2a2a");
-    px(pcX + 55, pcY + 80, 40, 22, "#3a3a3a");
+    // Monitor glow
+    if (player.state === "gaming" || player.state === "working") {
+        ctx.fillStyle = "rgba(0,255,0,0.03)";
+        ctx.fillRect(monX - 20, monY - 10, 140, 100);
+    }
 
-    // --- BED (right side) ---
-    const bedX = gx + 510, bedY = gy + 160;
-    // Bed frame
-    px(bedX, bedY, 180, 120, "#4a3828");
-    // Headboard
-    px(bedX + 150, bedY - 40, 30, 50, "#5a4030");
-    // Mattress with Botafogo pattern (black & white polka dot)
-    px(bedX + 4, bedY + 4, 172, 112, "#e8e8e8");
-    // Black dots pattern
-    for (let dx = 0; dx < 8; dx++) {
-        for (let dy = 0; dy < 5; dy++) {
-            if ((dx + dy) % 2 === 0) {
-                circle(bedX + 18 + dx * 22, bedY + 18 + dy * 22, 8, "#1a1a1a");
-            }
+    // RGB Keyboard
+    for (let i = 0; i < 12; i++) {
+        const hue = (Date.now() / 30 + i * 30) % 360;
+        px(deskX + 20 + i * 12, deskY - 14, 10, 6, `hsl(${hue},100%,50%)`);
+    }
+    // Keyboard frame
+    ctx.strokeStyle = "#2a2a2a"; ctx.lineWidth = 1;
+    ctx.strokeRect(deskX + 18, deskY - 16, 148, 10);
+    // Mouse
+    px(deskX + 148, deskY - 16, 14, 10, "#2a2a2a");
+    circle(deskX + 155, deskY - 12, 2, "#4a4a4a");
+
+    // iFood box on desk
+    px(deskX - 2, deskY - 28, 38, 22, "#e83030");
+    px(deskX, deskY - 26, 34, 18, "#d02020");
+    txt("iFood", deskX + 5, deskY - 13, "#fff", 9, "left", true);
+    // Smiley on box
+    circle(deskX + 30, deskY - 22, 4, "#fff");
+
+    // Energy drink cans on desk
+    px(deskX + 135, deskY - 24, 8, 18, "#d03030");
+    px(deskX + 145, deskY - 20, 8, 14, "#30a030");
+    px(deskX + 155, deskY - 22, 8, 16, "#e0c020");
+
+    // Chair (in front of desk)
+    px(deskX + 50, deskY + 40, 60, 8, "#2a2a2a"); // seat
+    px(deskX + 55, deskY + 10, 50, 32, "#3a3a3a"); // back
+    px(deskX + 52, deskY + 48, 6, 30, "#222"); // leg
+    px(deskX + 102, deskY + 48, 6, 30, "#222"); // leg
+    // Chair wheels
+    circle(deskX + 55, deskY + 80, 3, "#333");
+    circle(deskX + 78, deskY + 80, 3, "#333");
+    circle(deskX + 105, deskY + 80, 3, "#333");
+
+    // === BOTAFOGO POSTER 1 (on wall center) ===
+    const p1x = gx + 370, p1y = gy + 15;
+    // Frame
+    px(p1x - 2, p1y - 2, 94, 134, "#3a3030");
+    px(p1x, p1y, 90, 130, "#141414");
+    // White border inside
+    px(p1x + 3, p1y + 3, 84, 124, "#1a1a1a");
+    // Botafogo star emblem
+    circle(p1x + 45, p1y + 45, 28, "#fff");
+    circle(p1x + 45, p1y + 45, 24, "#000");
+    // Star
+    drawStar(p1x + 45, p1y + 45, 15, 7, 5, "#fff");
+    txt("BOTAFOGO", p1x + 45, p1y + 90, "#fff", 11, "center", true);
+    txt("DE FUTEBOL E REGATAS", p1x + 45, p1y + 105, "#888", 6, "center");
+
+    // === BOTAFOGO POSTER 2 (flag/banner) ===
+    const p2x = gx + 510, p2y = gy + 20;
+    px(p2x - 2, p2y - 2, 84, 114, "#3a3030");
+    px(p2x, p2y, 80, 110, "#141414");
+    px(p2x + 2, p2y + 2, 76, 106, "#1a1a1a");
+    // Horizontal stripes
+    px(p2x + 5, p2y + 30, 70, 12, "#fff");
+    px(p2x + 5, p2y + 55, 70, 12, "#fff");
+    // Star
+    drawStar(p2x + 40, p2y + 45, 10, 5, 5, "#fff");
+    txt("GLORIOSO", p2x + 40, p2y + 90, "#fff", 8, "center", true);
+
+    // === BED (right side, side-view) ===
+    const bedX = gx + 520, bedY = floorAbs;
+    // Headboard (against wall)
+    px(bedX + 140, bedY - 90, 24, 90, "#5a4030");
+    px(bedX + 142, bedY - 86, 20, 82, "#6a5040");
+    // Bed frame side
+    px(bedX, bedY - 10, 164, 14, "#5a4030");
+    px(bedX, bedY + 4, 164, 6, "#4a3020");
+    // Legs
+    px(bedX + 2, bedY + 10, 8, 70, "#4a3020");
+    px(bedX + 154, bedY + 10, 8, 70, "#4a3020");
+    // Mattress (side view - shows as thick rectangle)
+    px(bedX + 4, bedY - 30, 156, 22, "#e0e0e0");
+    // Botafogo bedsheet pattern (B&W stripes)
+    for (let si = 0; si < 8; si++) {
+        if (si % 2 === 0) {
+            px(bedX + 4 + si * 20, bedY - 30, 18, 22, "#1a1a1a");
         }
     }
     // Pillow
-    px(bedX + 140, bedY + 10, 30, 40, "#c8c8d8");
+    px(bedX + 120, bedY - 42, 36, 16, "#c8c8d8");
+    px(bedX + 122, bedY - 40, 32, 12, "#d8d8e8");
+    // Blanket hanging
+    px(bedX + 4, bedY - 10, 100, 4, "#c0c0c0");
 
-    // --- BOTAFOGO POSTER 1 (on back wall) ---
-    const p1x = gx + 370, p1y = gy + 10;
-    px(p1x, p1y, 90, 120, "#141414");
-    px(p1x + 2, p1y + 2, 86, 116, "#1a1a1a");
-    // Star logo
-    circle(p1x + 45, p1y + 40, 20, "#fff");
-    circle(p1x + 45, p1y + 40, 17, "#000");
-    // Star shape (simplified)
-    ctx.fillStyle = "#fff";
-    const starCx = p1x + 45, starCy = p1y + 40;
-    for (let i = 0; i < 5; i++) {
-        const angle = (i * 72 - 90) * Math.PI / 180;
-        const sx = starCx + Math.cos(angle) * 10;
-        const sy = starCy + Math.sin(angle) * 10;
-        px(sx - 2, sy - 2, 4, 4, "#fff");
+    // === TRASH CAN (near desk) ===
+    px(gx + 20, floorAbs + 20, 34, 50, "#2a2a2a");
+    px(gx + 18, floorAbs + 16, 38, 8, "#3a3a3a");
+    // Trash sticking out
+    if (daysWithoutLeaving > 2) {
+        px(gx + 22, floorAbs + 10, 12, 10, "#c87830");
+        px(gx + 36, floorAbs + 8, 8, 12, "#d03030");
     }
-    txt("BOTAFOGO", p1x + 45, p1y + 80, "#fff", 10, "center", true);
 
-    // --- BOTAFOGO POSTER 2 (smaller, flag) ---
-    const p2x = gx + 500, p2y = gy + 15;
-    px(p2x, p2y, 70, 90, "#141414");
-    px(p2x + 2, p2y + 2, 66, 86, "#1a1a1a");
-    circle(p2x + 35, p2y + 35, 14, "#fff");
-    circle(p2x + 35, p2y + 35, 11, "#000");
-    circle(p2x + 35, p2y + 35, 6, "#fff");
-    txt("BOT", p2x + 35, p2y + 70, "#fff", 9, "center", true);
+    // === GREEN CARPET (on floor, center) ===
+    px(gx + 260, floorAbs + 100, 140, 50, "#2a4a2a");
+    px(gx + 262, floorAbs + 102, 136, 46, "#1e3a1e");
+    // Stains on carpet
+    circle(gx + 310, floorAbs + 120, 6, "#183018");
+    circle(gx + 340, floorAbs + 130, 4, "#183018");
 
-    // --- FRIDGE / iFood area (left) ---
-    const frX = gx + 20, frY = gy + 100;
-    // Trash can
-    px(frX, frY + 100, 30, 35, "#2a2a2a");
-    px(frX - 2, frY + 98, 34, 6, "#3a3a3a");
-
-    // Scattered trash on floor
+    // === SCATTERED TRASH ON FLOOR ===
     const trashItems = Math.min(daysWithoutLeaving, 20);
     for (let i = 0; i < trashItems; i++) {
-        const tx = gx + 30 + seededRand(i * 7 + 1) * (gw - 100);
-        const ty = floorY + 20 + seededRand(i * 13 + 3) * (gh * 0.5);
-        const type = (seededRand(i * 23) * 4) | 0;
-        if (type === 0) { // Pizza box
-            px(tx, ty, 16, 12, "#c87830");
-            px(tx + 2, ty + 2, 12, 8, "#a86020");
-        } else if (type === 1) { // Can
-            px(tx, ty, 6, 10, "#d03030");
+        const tx = gx + 40 + seededRand(i * 7 + 1) * (gw - 120);
+        const ty = floorAbs + 30 + seededRand(i * 13 + 3) * (gh - FLOOR_Y - 100);
+        const type = (seededRand(i * 23) * 5) | 0;
+        if (type === 0) { // Pizza box flat
+            px(tx, ty, 18, 6, "#c87830");
+            px(tx + 1, ty + 1, 16, 4, "#a86020");
+        } else if (type === 1) { // Soda can
+            px(tx, ty, 8, 12, "#d03030");
+            px(tx + 1, ty, 6, 2, "#e04040");
         } else if (type === 2) { // Wrapper
-            px(tx, ty, 10, 6, "#e0c020");
+            px(tx, ty, 12, 4, "#e0c020");
+        } else if (type === 3) { // Cup
+            px(tx, ty, 10, 14, "#e8e0d8");
         } else { // Tissue
-            px(tx, ty, 8, 8, "#d8d0c8");
+            px(tx, ty, 10, 8, "#d8d0c8");
         }
     }
 
-    // Dirty clothes on floor
+    // Dirty clothes
     if (daysWithoutLeaving > 3) {
-        px(gx + 300, floorY + 80, 25, 12, "#2a3a2a");
-        px(gx + 450, floorY + 100, 20, 15, "#3a2a40");
+        px(gx + 300, floorAbs + 150, 28, 10, "#2a3a2a");
+        px(gx + 450, floorAbs + 140, 22, 12, "#3a2a40");
     }
 
-    // --- Green carpet/rug (dirty) ---
-    px(gx + 250, floorY + 40, 120, 80, "#2a4a2a");
-    px(gx + 252, floorY + 42, 116, 76, "#1a3a1a");
-    // Stains
-    circle(gx + 300, floorY + 70, 8, "#183018");
-    circle(gx + 330, floorY + 80, 5, "#183018");
+    // Phone on floor
+    px(gx + 335, floorAbs + 110, 14, 24, "#1a1a1a");
+    px(gx + 337, floorAbs + 112, 10, 18, "#2a2a40");
+    // Phone screen glow
+    px(gx + 338, floorAbs + 114, 8, 14, "#1a2030");
 }
 
-// --- Draw character (larger, pixel art, dark skin, Botafogo shirt) ---
+// Draw a 5-pointed star
+function drawStar(cx, cy, outerR, innerR, points, col) {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const angle = (i * Math.PI / points) - Math.PI / 2;
+        const sx = cx + Math.cos(angle) * r;
+        const sy = cy + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+    }
+    ctx.closePath();
+    ctx.fill();
+}
+
+// --- Draw character (side-view, consistent 2D pixel art) ---
 function drawCharacter() {
     const x = (player.x + GAME_X) | 0;
     const y = (player.y + GAME_Y) | 0;
-    const bob = player.state === "walking" ? Math.sin(player.animTimer * 10) * 3 : 0;
+    const bob = player.state === "walking" ? Math.sin(player.animTimer * 10) * 2 : 0;
     const t = player.animTimer;
+    const skinColor = "#6a4a30";
+    const skinShadow = "#5a3a22";
 
-    // Shadow
-    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    // Shadow on ground
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.beginPath();
-    ctx.ellipse(x, y + 65, 22, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y + 60, 20, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // --- Legs / Shorts ---
-    const legBob = player.state === "walking" ? Math.sin(t * 12) * 4 : 0;
-    px(x - 12, y + 35 + bob, 10, 25, "#1a1a1a"); // left leg (shorts)
-    px(x + 2, y + 35 + bob, 10, 25, "#1a1a1a");
-    // Shoes
-    px(x - 14, y + 58 + bob - legBob, 12, 6, "#3a3a3a");
-    px(x + 1, y + 58 + bob + legBob, 12, 6, "#3a3a3a");
+    // --- SHOES ---
+    const legOff = player.state === "walking" ? Math.sin(t * 12) * 4 : 0;
+    px(x - 14, y + 50 + bob - Math.max(0, legOff), 12, 8, "#2a2a2a"); // left shoe
+    px(x + 2, y + 50 + bob + Math.max(0, legOff), 12, 8, "#2a2a2a");   // right shoe
+    // Shoe soles
+    px(x - 14, y + 56 + bob, 14, 3, "#1a1a1a");
+    px(x + 2, y + 56 + bob, 14, 3, "#1a1a1a");
 
-    // --- Body / Botafogo Shirt ---
-    const bodyY = y - 10 + bob;
-    // Black shirt base
-    px(x - 18, bodyY, 36, 45, "#1a1a1a");
-    // Botafogo star emblem (white circle with star)
-    circle(x, bodyY + 16, 7, "#e8e8e8");
-    circle(x, bodyY + 16, 5, "#1a1a1a");
-    // Star
-    ctx.fillStyle = "#e8e8e8";
-    const scx = x, scy = bodyY + 16;
-    for (let i = 0; i < 5; i++) {
-        const angle = (i * 72 - 90) * Math.PI / 180;
-        px(scx + Math.cos(angle) * 3 - 1, scy + Math.sin(angle) * 3 - 1, 2, 2, "#e8e8e8");
-    }
+    // --- LEGS (dark shorts) ---
+    px(x - 12, y + 30 + bob, 10, 22, "#1a1a1a");
+    px(x + 2, y + 30 + bob, 10, 22, "#1a1a1a");
+    // Skin showing below shorts
+    px(x - 11, y + 42 + bob, 8, 10, skinColor);
+    px(x + 3, y + 42 + bob, 8, 10, skinColor);
 
+    // --- BODY / SHIRT (Botafogo black) ---
+    const bodyY = y - 12 + bob;
+    px(x - 18, bodyY, 36, 42, "#1a1a1a");
+    // Collar
+    px(x - 6, bodyY, 12, 4, skinColor);
+    // Botafogo emblem on chest
+    circle(x, bodyY + 18, 8, "#e8e8e8");
+    circle(x, bodyY + 18, 6, "#1a1a1a");
+    drawStar(x, bodyY + 18, 4, 2, 5, "#e8e8e8");
+
+    // --- ARMS ---
     // Sleeves
-    px(x - 24, bodyY + 2, 8, 18, "#1a1a1a");
-    px(x + 16, bodyY + 2, 8, 18, "#1a1a1a");
-
-    // --- Arms (dark skin) ---
-    const skinColor = "#6a4a30";
-    px(x - 26, bodyY + 18, 8, 20, skinColor); // left arm
-    px(x + 18, bodyY + 18, 8, 20, skinColor); // right arm
+    px(x - 24, bodyY + 4, 8, 16, "#1a1a1a");
+    px(x + 16, bodyY + 4, 8, 16, "#1a1a1a");
+    // Forearms (skin)
+    px(x - 24, bodyY + 18, 8, 16, skinColor);
+    px(x + 16, bodyY + 18, 8, 16, skinColor);
     // Hands
-    px(x - 27, bodyY + 36, 10, 6, skinColor);
-    px(x + 17, bodyY + 36, 10, 6, skinColor);
+    px(x - 25, bodyY + 32, 10, 6, skinColor);
+    px(x + 15, bodyY + 32, 10, 6, skinColor);
 
-    // --- Head ---
-    const headY = y - 40 + bob;
-    // Head shape (dark skin)
-    px(x - 14, headY, 28, 30, skinColor);
-    // Hair (black, afro-ish top)
-    px(x - 16, headY - 8, 32, 14, "#1a1a1a");
-    px(x - 18, headY - 4, 36, 8, "#1a1a1a");
-    // Sides of hair
-    px(x - 16, headY + 2, 4, 12, "#1a1a1a");
-    px(x + 12, headY + 2, 4, 12, "#1a1a1a");
+    // --- HEAD ---
+    const headY = y - 42 + bob;
+    // Neck
+    px(x - 4, headY + 26, 8, 6, skinColor);
+    // Head
+    px(x - 14, headY, 28, 28, skinColor);
+    // Hair (afro, rounded top)
+    px(x - 16, headY - 10, 32, 16, "#1a1a1a");
+    px(x - 18, headY - 6, 36, 10, "#1a1a1a");
+    px(x - 17, headY + 2, 4, 10, "#1a1a1a"); // sideburn left
+    px(x + 13, headY + 2, 4, 10, "#1a1a1a"); // sideburn right
+
+    // Ears
+    px(x - 17, headY + 8, 5, 8, skinColor);
+    px(x + 12, headY + 8, 5, 8, skinColor);
 
     // Eyes
     if (player.state === "sleeping") {
-        px(x - 8, headY + 12, 6, 2, "#000");
-        px(x + 2, headY + 12, 6, 2, "#000");
+        px(x - 9, headY + 12, 7, 2, "#000");
+        px(x + 2, headY + 12, 7, 2, "#000");
     } else {
-        // Whites
-        px(x - 9, headY + 10, 7, 5, "#e8e8e8");
-        px(x + 2, headY + 10, 7, 5, "#e8e8e8");
-        // Pupils
-        px(x - 7, headY + 11, 3, 3, "#1a1a1a");
-        px(x + 4, headY + 11, 3, 3, "#1a1a1a");
+        px(x - 9, headY + 10, 7, 6, "#e8e8e8"); // white left
+        px(x + 2, headY + 10, 7, 6, "#e8e8e8");  // white right
+        px(x - 7, headY + 11, 4, 4, "#1a1a1a");  // pupil left
+        px(x + 4, headY + 11, 4, 4, "#1a1a1a");   // pupil right
+        // Highlight
+        px(x - 6, headY + 11, 2, 2, "#fff");
+        px(x + 5, headY + 11, 2, 2, "#fff");
     }
+
+    // Nose
+    px(x - 2, headY + 16, 4, 3, skinShadow);
+
+    // Mouth
+    px(x - 3, headY + 21, 6, 2, "#4a2a18");
 
     // Beard
     if (player.beardLevel > 0) {
         const bl = Math.min(player.beardLevel, 12);
-        for (let i = 0; i < bl; i++) {
+        // Stubble / beard fill
+        for (let i = 0; i < bl * 2; i++) {
             const bx = x - 10 + (seededRand(i * 42 + 7) * 20) | 0;
-            const by = headY + 22 + (seededRand(i * 13 + 3) * bl) | 0;
+            const by = headY + 20 + (seededRand(i * 13 + 3) * Math.min(bl, 8)) | 0;
             px(bx, by, 2, 2, "#1a1a1a");
         }
-        // Goatee area
-        px(x - 4, headY + 24, 8, Math.min(bl, 6), "#1a1a1a");
+        // Chin beard
+        if (bl > 3) {
+            px(x - 5, headY + 24, 10, Math.min(bl - 2, 8), "#1a1a1a");
+        }
     }
-
-    // Mouth (slight line)
-    px(x - 3, headY + 20, 6, 2, "#4a2a18");
-
-    // --- Ears ---
-    px(x - 16, headY + 10, 4, 8, skinColor);
-    px(x + 12, headY + 10, 4, 8, skinColor);
 }
 
 // --- Speech Bubble ---
@@ -839,7 +933,7 @@ document.addEventListener("keydown", e => {
 
 function resetGame() {
     Object.assign(needs, { hunger: 80, sleep: 90, cs: 30, horniness: 20, money: 50, sanity: 95, hygiene: 15 });
-    Object.assign(player, { x: 380, y: 380, tx: 380, ty: 380, state: "idle", beardLevel: 0, animTimer: 0, actionTimer: 0, actionDuration: 0 });
+    Object.assign(player, { x: 350, y: 400, tx: 350, ty: 400, state: "idle", beardLevel: 0, animTimer: 0, actionTimer: 0, actionDuration: 0 });
     day = 1; gameTime = 8 * 3600; timeSpeed = 60;
     daysWithoutLeaving = 0; csHoursToday = 0; botaGamesWatched = 0;
     totalWorkDays = 0; consecutiveWorkDays = 0; workedToday = false;
