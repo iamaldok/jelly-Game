@@ -1,30 +1,1204 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>O Ermitão — Simulador do Amigo Recluso</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #0a0a0a;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            overflow: hidden;
-        }
-        canvas {
-            border: 2px solid #333;
-            image-rendering: pixelated;
-            max-width: 100vw;
-            max-height: 100vh;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O Ermitão — Simulador do Zé do Quarto</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
+
+:root {
+  --yellow: #e8c547;
+  --dark: #0a0a0f;
+  --panel: #0d0d1a;
+  --room-wall: #1e1530;
+  --room-floor: #2a1a0a;
+  --green: #00ff41;
+  --red: #ff4444;
+  --blue: #00c8ff;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; image-rendering:pixelated; }
+
+body {
+  background: #050508;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: 'VT323', 'Courier New', monospace;
+}
+
+.game-shell {
+  width: 960px;
+  height: 620px;
+  border: 4px solid var(--yellow);
+  box-shadow: 0 0 80px rgba(232,197,71,0.25), 0 0 200px rgba(232,197,71,0.05);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--dark);
+}
+
+/* TITLE BAR */
+.titlebar {
+  background: var(--yellow);
+  height: 26px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.titlebar-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: #1a1a2e;
+  margin-left: 6px;
+}
+.tb-dot { width:12px; height:12px; background:#1a1a2e; border:0; }
+.titlebar-right { margin-left:auto; font-family:'Press Start 2P',monospace; font-size:6px; color:#1a1a2e; }
+
+/* MAIN LAYOUT */
+.main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ROOM */
+.room {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--room-wall);
+}
+
+.floor {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 42%;
+  background: var(--room-floor);
+  border-top: 3px solid #3a2a10;
+}
+.floor::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 48px),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 48px);
+}
+
+.wall-deco {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 58%;
+}
+
+/* Botafogo poster */
+.poster {
+  position: absolute;
+  top: 28px; left: 70px;
+  width: 66px; height: 86px;
+  background: #000;
+  border: 3px solid var(--yellow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  box-shadow: 0 0 12px rgba(232,197,71,0.3);
+}
+.poster-star { font-size: 24px; line-height:1; }
+.poster-txt { color:#fff; font-family:'Press Start 2P',monospace; font-size:5px; letter-spacing:-1px; }
+.poster-sub { color:var(--yellow); font-size:9px; }
+
+.poster2 {
+  position: absolute;
+  top: 20px; left: 155px;
+  width: 50px; height: 65px;
+  background: #000;
+  border: 2px solid #444;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.poster2 .p2-star { font-size: 16px; }
+.poster2 .p2-txt { color:#888; font-family:'Press Start 2P',monospace; font-size:4px; }
+
+/* Window */
+.window-wall {
+  position: absolute;
+  top: 24px; right: 90px;
+  width: 84px; height: 84px;
+  background: #0a1e3a;
+  border: 5px solid #5a4a2a;
+  display: grid;
+  grid-template-columns:1fr 1fr;
+  gap:3px; padding:3px;
+  transition: background 0.5s;
+}
+.wp { background: #1a3a6a; opacity:.8; transition: background 0.5s; }
+
+.trash-pile {
+  position: absolute;
+  bottom: 42%; left: 18px;
+  font-size: 18px;
+  line-height: 1.2;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+/* BED */
+.bed {
+  position: absolute;
+  right: 16px;
+  bottom: 42%;
+  width: 108px;
+  height: 70px;
+}
+.bed-frame {
+  width:100%; height:90%;
+  background: #4a2808;
+  border: 3px solid #6a3a10;
+  position:relative;
+}
+.bed-pillow {
+  position:absolute; top:6px; left:6px;
+  width:36px; height:24px;
+  background:#e8dcc8; border:2px solid #c8b890;
+}
+.bed-blanket {
+  position:absolute; top:6px; right:6px;
+  width:56px; height:40px;
+  background: #0a1a6a;
+  border:2px solid #08146a;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; opacity:.7;
+}
+.bed-legs { display:flex; justify-content:space-between; padding:0 8px; }
+.bed-leg { width:10px; height:10%; background:#3a1806; }
+
+/* DESK */
+.desk {
+  position:absolute;
+  bottom: 42%;
+  left: 140px;
+  width: 290px;
+  height: 16px;
+  background: #5a3a18;
+  border-top: 3px solid #8a6030;
+  z-index:2;
+}
+.desk::before, .desk::after {
+  content:'';
+  position:absolute; bottom:-55px;
+  width:12px; height:55px;
+  background:#4a2808;
+}
+.desk::before { left:10px; }
+.desk::after { right:10px; }
+
+/* Monitor */
+.monitor-wrap {
+  position:absolute;
+  bottom:57%;
+  left: 185px;
+  z-index:3;
+}
+.monitor {
+  width: 110px; height: 76px;
+  background:#111;
+  border: 4px solid #383838;
+  border-radius:3px;
+  overflow:hidden;
+  position:relative;
+}
+.monitor-screen {
+  width:100%; height:100%;
+  position:relative;
+  overflow:hidden;
+}
+.screen-content {
+  width:100%; height:100%;
+  position:absolute;
+  transition: opacity 0.5s;
+}
+
+.screen-cs {
+  background: linear-gradient(160deg, #0a1628 0%, #142040 60%, #0a1020 100%);
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+}
+.cs-crosshair { color:#00ff41; font-size:18px; font-weight:bold; z-index:2; }
+.cs-hud-bottom { position:absolute; bottom:3px; left:3px; color:#00ff41; font-size:6px; font-family:'Press Start 2P',monospace; }
+.cs-hud-kills { position:absolute; top:3px; right:3px; color:#ff4444; font-size:5px; font-family:'Press Start 2P',monospace; }
+.cs-flash { position:absolute; inset:0; background:rgba(255,255,255,0.8); opacity:0; transition:opacity 0.1s; }
+
+.screen-work {
+  background: #c8c8c0;
+  padding: 3px;
+}
+.excel-grid {
+  display:grid; grid-template-columns:repeat(6,1fr);
+  gap:1px; height:100%;
+}
+.excel-cell {
+  background:#fff; border:0.5px solid #aaa;
+  font-size:4px; font-family:'Courier New'; color:#000;
+  padding:1px; overflow:hidden;
+}
+.excel-cell.header { background:#d0d0d0; font-weight:bold; }
+.excel-cell.selected { background:#b8d4ff; }
+
+.screen-sleep {
+  background:#000;
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:4px;
+}
+.screen-sleep span { font-size:28px; }
+.screen-sleep small { color:#333; font-size:8px; font-family:'Press Start 2P',monospace; }
+
+.screen-porn {
+  background: #1a0a0a;
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:3px;
+}
+.pornhub-logo { background:#ff9000; color:#000; font-family:'Press Start 2P',monospace; font-size:6px; padding:2px 4px; }
+.pornhub-logo span { color:#fff; background:#333; padding:0 2px; }
+.screen-porn small { color:#ff4444; font-size:7px; font-family:'Press Start 2P',monospace; }
+
+.screen-idle {
+  background:#111;
+  display:flex; align-items:center; justify-content:center;
+}
+.screen-idle span { font-size:20px; }
+
+.screen-bota {
+  background:#000;
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:3px;
+}
+.screen-bota .bota-logo { font-size:24px; }
+.screen-bota small { color:var(--yellow); font-size:7px; font-family:'Press Start 2P',monospace; }
+
+.monitor-stand { width:14px; height:14px; background:#333; margin:0 auto; }
+.monitor-base { width:55px; height:6px; background:#333; margin:0 auto; border-radius:2px; }
+
+.keyboard {
+  width: 115px; height: 22px;
+  background:#1e1e1e; border:2px solid #383838;
+  margin-top:3px;
+  display:grid; grid-template-columns:repeat(16,1fr);
+  grid-template-rows:repeat(3,1fr);
+  gap:1px; padding:2px;
+  border-radius:2px;
+}
+.k { background:#2e2e2e; border-radius:1px; transition: background 0.2s; }
+.k.lit { background:#00c8ff; }
+
+.mouse {
+  position:absolute;
+  bottom:57%; right:155px;
+  width:16px; height:22px;
+  background:#222; border:2px solid #444;
+  border-radius:4px 4px 6px 6px; z-index:3;
+}
+.mouse::after { content:''; position:absolute; top:8px; left:50%; transform:translateX(-50%); width:2px; height:6px; background:#555; border-radius:1px; }
+
+.cans {
+  position:absolute;
+  bottom:58%; left:165px;
+  display:flex; gap:3px; z-index:4;
+}
+.can {
+  width:10px; height:22px;
+  border-radius:2px;
+  border:1px solid rgba(255,255,255,0.2);
+}
+.can.blue { background:linear-gradient(#0080ff,#004080); }
+.can.red { background:linear-gradient(#ff2020,#801010); }
+.can.green { background:linear-gradient(#20c020,#108010); }
+
+.pizza-stack {
+  position:absolute;
+  bottom:58%; right:140px;
+  display:flex; flex-direction:column-reverse; gap:1px; z-index:4;
+}
+.pbox {
+  width:36px; height:10px;
+  background:#c86010;
+  border:1px solid #a04008;
+  font-size:8px;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* ======= CHARACTER ======= */
+.character {
+  position:absolute;
+  z-index:10;
+  transition: left 1.2s cubic-bezier(.4,0,.2,1), bottom 0.5s ease;
+}
+
+.pc-head {
+  width:26px; height:26px;
+  background:#8B6914;
+  border:2px solid #6a5010;
+  margin:0 auto;
+  position:relative;
+  border-radius: 2px;
+}
+.pc-hair {
+  position:absolute; top:-8px; left:-3px; right:-3px; height:12px;
+  background:#1a0e04; border-radius:3px 3px 0 0;
+}
+.pc-eyes {
+  position:absolute; top:8px;
+  width:100%; display:flex; justify-content:space-around; padding:0 4px;
+}
+.pc-eye { width:4px; height:5px; background:#1a1a1a; border-radius:1px; }
+.pc-eye.sleepy { height:2px; margin-top:2px; }
+.pc-beard {
+  position:absolute; bottom:-2px; left:2px; right:2px; height:0px;
+  background:#1a0e04; opacity:0; border-radius:0 0 3px 3px;
+  transition: height 0.5s, opacity 0.5s;
+}
+.pc-mouth {
+  position:absolute; bottom:4px; left:50%; transform:translateX(-50%);
+  width:6px; height:2px; background:#5a3010; border-radius:1px;
+}
+.pc-body {
+  width:30px; height:30px;
+  background:#000; border:2px solid #222;
+  margin:0 auto 0;
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+}
+.pc-body::before { content:'★'; font-size:12px; color:var(--yellow); }
+.pc-arms {
+  position:absolute; top:0; left:-9px; right:-9px; height:100%;
+  display:flex; justify-content:space-between;
+}
+.pc-arm { width:9px; height:24px; background:#000; border:2px solid #222; margin-top:2px; }
+.pc-hand { width:9px; height:9px; background:#8B6914; border:1px solid #6a5010; border-radius:1px; }
+.pc-legs { display:flex; gap:4px; justify-content:center; }
+.pc-leg { width:11px; height:22px; background:#1a1a4a; border:2px solid #101040; }
+.pc-shoe { width:13px; height:7px; background:#111; border:1px solid #333; }
+
+/* Thought bubble */
+.thought {
+  position:absolute;
+  bottom:105%; left:50%; transform:translateX(-50%);
+  background:rgba(255,255,255,.96);
+  border:2px solid #111;
+  padding:5px 8px;
+  border-radius:12px;
+  white-space:nowrap;
+  font-size:14px;
+  color:#111;
+  z-index:20;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity 0.4s;
+}
+.thought::after {
+  content:'';
+  position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+  border:4px solid transparent; border-top-color:#111;
+}
+
+.action-label {
+  position:absolute;
+  bottom:100%; left:50%; transform:translateX(-50%);
+  background:var(--yellow);
+  color:#000;
+  font-family:'Press Start 2P',monospace;
+  font-size:5px;
+  padding:3px 6px;
+  white-space:nowrap;
+  border-radius:2px;
+  margin-bottom:4px;
+}
+
+/* Random event popup */
+.event-popup {
+  position:absolute;
+  top:60px; left:50%; transform:translateX(-50%);
+  background:#ff4444;
+  border:3px solid #ff8888;
+  padding:10px 16px;
+  font-family:'Press Start 2P',monospace;
+  font-size:7px;
+  color:#fff;
+  z-index:50;
+  text-align:center;
+  line-height:2;
+  box-shadow: 0 0 30px rgba(255,68,68,0.5);
+  display:none;
+  max-width:280px;
+  white-space: pre-line;
+}
+.event-popup.good { background:#2ecc71; border-color:#5dde9e; box-shadow: 0 0 30px rgba(46,204,113,0.5); }
+.event-popup.show { display:block; animation: popIn 0.3s ease; }
+@keyframes popIn { from{transform:translateX(-50%) scale(0.5)} to{transform:translateX(-50%) scale(1)} }
+
+/* Game Over overlay */
+.gameover-overlay {
+  position:absolute; inset:0; z-index:200;
+  background:rgba(0,0,0,0.92);
+  display:none; flex-direction:column;
+  align-items:center; justify-content:center; gap:12px;
+}
+.gameover-overlay.show { display:flex; animation: fadeIn 0.5s ease; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.go-title { font-family:'Press Start 2P',monospace; font-size:24px; color:var(--red); }
+.go-reason { font-family:'VT323',monospace; font-size:20px; color:#ccc; text-align:center; max-width:400px; }
+.go-stats { font-family:'VT323',monospace; font-size:16px; color:#666; text-align:center; }
+.go-btn {
+  margin-top:10px; background:var(--yellow); color:#000;
+  font-family:'Press Start 2P',monospace; font-size:8px;
+  padding:10px 20px; border:none; cursor:pointer;
+}
+.go-btn:hover { filter:brightness(1.2); }
+
+/* Menu overlay */
+.menu-overlay {
+  position:absolute; inset:0; z-index:200;
+  background:rgba(5,5,8,0.97);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:14px;
+}
+.menu-overlay.hide { display:none; }
+.menu-title { font-family:'Press Start 2P',monospace; font-size:18px; color:var(--yellow); }
+.menu-sub { font-family:'VT323',monospace; font-size:18px; color:#666; }
+.menu-star { font-size:50px; }
+.menu-info { font-family:'VT323',monospace; font-size:15px; color:#888; text-align:center; line-height:1.8; }
+.menu-start {
+  background:var(--yellow); color:#000;
+  font-family:'Press Start 2P',monospace; font-size:9px;
+  padding:12px 24px; border:none; cursor:pointer;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+.menu-start:hover { filter:brightness(1.2); }
+
+/* ======= HUD PANEL ======= */
+.hud {
+  width: 230px;
+  background: var(--panel);
+  border-left: 3px solid var(--yellow);
+  display:flex; flex-direction:column;
+  padding: 10px 8px;
+  gap:8px;
+  overflow:hidden;
+}
+
+.hud-title {
+  font-family:'Press Start 2P',monospace;
+  font-size:7px; color:var(--yellow);
+  text-align:center;
+  border-bottom:2px solid var(--yellow);
+  padding-bottom:7px;
+  letter-spacing:1px;
+}
+
+.char-info {
+  text-align:center;
+  font-family:'Press Start 2P',monospace;
+}
+.char-info .name { font-size:8px; color:#fff; }
+.char-info .sub { font-size:5px; color:#666; margin-top:3px; }
+.char-info .mood { font-size:18px; margin-top:4px; }
+
+.day-box {
+  background:#050510;
+  border:2px solid #222;
+  padding:6px; text-align:center;
+}
+.day-box .lbl { font-family:'Press Start 2P',monospace; font-size:5px; color:#444; }
+.day-box .num { font-family:'Press Start 2P',monospace; font-size:20px; color:var(--yellow); }
+
+.needs { flex:1; overflow:hidden; }
+.needs-lbl { font-family:'Press Start 2P',monospace; font-size:5px; color:#444; margin-bottom:6px; }
+
+.need { margin-bottom:7px; }
+.need-top { display:flex; justify-content:space-between; margin-bottom:2px; }
+.need-name { font-size:12px; color:#ccc; }
+.need-pct { font-family:'Press Start 2P',monospace; font-size:5px; color:#666; }
+.need-track { height:7px; background:#0a0a18; border:1px solid #222; overflow:hidden; }
+.need-fill {
+  height:100%; transition: width 0.8s ease, background 0.5s;
+  position:relative;
+}
+.need-fill::after {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:rgba(255,255,255,0.15);
+}
+
+.fill-fome { background:#ff6b35; }
+.fill-sono { background:#9b59b6; }
+.fill-cs   { background:#00c8ff; }
+.fill-punheta { background:#ff69b4; }
+.fill-din  { background:#2ecc71; }
+.fill-san  { background:#f39c12; }
+.fill-hig  { background:#74b9ff; }
+
+.fill-crit { animation: critPulse 0.5s infinite; }
+@keyframes critPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.log {
+  background:#050508;
+  border:1px solid #1a1a1a;
+  padding:5px; flex-shrink:0;
+  max-height:100px; overflow:hidden;
+}
+.log-title { font-family:'Press Start 2P',monospace; font-size:5px; color:#333; margin-bottom:4px; }
+.log-item { font-size:11px; color:#555; margin-bottom:2px; line-height:1.2; }
+.log-item.new { color:#aaa; }
+.log-item.warn { color:#ff6b35; }
+.log-item.good { color:#2ecc71; }
+
+/* BOTTOM BAR */
+.bottom {
+  position:absolute; bottom:0; left:0;
+  width:calc(100% - 230px);
+  height:38px;
+  background:#050510;
+  border-top:2px solid #1a1a2a;
+  display:flex; align-items:center;
+  padding:0 6px; gap:4px;
+  z-index:15;
+}
+.btn {
+  background:#0d0d1e;
+  border:2px solid #2a2a4a;
+  color:#666;
+  font-family:'Press Start 2P',monospace;
+  font-size:5px;
+  padding:5px 6px;
+  cursor:pointer;
+  transition:all 0.15s;
+  white-space:nowrap;
+}
+.btn:hover { border-color:var(--yellow); color:var(--yellow); transform:translateY(-1px); }
+.btn.active { border-color:var(--blue); color:var(--blue); background:#080818; }
+
+.clock {
+  margin-left:auto;
+  font-family:'Press Start 2P',monospace;
+  font-size:8px; color:#444;
+}
+.clock span { color:#777; }
+
+.speed-btn {
+  background:#0d0d1e; border:2px solid #2a2a4a;
+  color:#666; font-family:'Press Start 2P',monospace; font-size:5px;
+  padding:4px 6px; cursor:pointer;
+}
+.speed-btn.on { border-color:#ff4444; color:#ff4444; }
+
+/* Scanlines */
+.scanlines {
+  position:absolute; inset:0; pointer-events:none; z-index:100;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);
+}
+
+.monitor-glow-ambient {
+  position:absolute;
+  bottom:42%; left:160px;
+  width:250px; height:120px;
+  pointer-events:none; z-index:1;
+  transition: background 0.5s;
+}
+
+/* Responsive */
+@media (max-width: 980px) {
+  .game-shell { width:100vw; height:auto; aspect-ratio:960/620; }
+  .game-shell * { font-size-adjust: none; }
+}
+</style>
 </head>
 <body>
-    <canvas id="game" width="960" height="640"></canvas>
-    <script src="game.js"></script>
+<div class="game-shell">
+  <div class="scanlines"></div>
+
+  <!-- Menu -->
+  <div class="menu-overlay" id="menuOverlay">
+    <div class="menu-title">O ERMITAO</div>
+    <div class="menu-sub">Simulador do Amigo Recluso</div>
+    <div class="menu-star">★</div>
+    <div class="menu-info">
+      Sobreviva o maximo de dias sem sair de casa!<br>
+      Gerencie fome, sono, sanidade e vicio em CS<br><br>
+      [1-6] Acoes &nbsp; [+/-] Velocidade<br>
+      Clique nos botoes pra interagir
+    </div>
+    <button class="menu-start" id="startBtn">JOGAR</button>
+  </div>
+
+  <!-- Game Over -->
+  <div class="gameover-overlay" id="gameoverOverlay">
+    <div class="go-title">GAME OVER</div>
+    <div class="go-reason" id="goReason"></div>
+    <div class="go-stats" id="goStats"></div>
+    <button class="go-btn" id="restartBtn">RECOMECAR</button>
+  </div>
+
+  <!-- Title Bar -->
+  <div class="titlebar">
+    <div class="tb-dot"></div><div class="tb-dot"></div><div class="tb-dot"></div>
+    <div class="titlebar-title">JELLY: THE GAME v1.0</div>
+    <div class="titlebar-right" id="speedLabel">VELOCIDADE: 1x</div>
+  </div>
+
+  <div class="main">
+    <!-- ROOM -->
+    <div class="room" id="room">
+      <div class="floor"></div>
+      <div class="wall-deco">
+        <div class="poster">
+          <div class="poster-star">★</div>
+          <div class="poster-txt">BOTAFOGO</div>
+          <div class="poster-sub">GLORIOSO</div>
+        </div>
+        <div class="poster2">
+          <div class="p2-star">★</div>
+          <div class="p2-txt">FOGAO</div>
+        </div>
+        <div class="window-wall" id="windowEl">
+          <div class="wp"></div><div class="wp"></div>
+          <div class="wp"></div><div class="wp"></div>
+        </div>
+      </div>
+
+      <div class="monitor-glow-ambient" id="monitorGlow"></div>
+      <div class="desk"></div>
+
+      <div class="monitor-wrap" id="monitorWrap">
+        <div class="monitor">
+          <div class="monitor-screen" id="monitorScreen">
+            <div class="screen-content screen-cs" id="screenCS" style="display:none">
+              <div class="cs-crosshair">+</div>
+              <div class="cs-hud-bottom" id="csHP">&#9829;&#9829;&#9829; 100hp</div>
+              <div class="cs-hud-kills" id="csKills">0 KILLS</div>
+              <div class="cs-flash" id="csFlash"></div>
+            </div>
+            <div class="screen-content screen-work" id="screenWork" style="display:none">
+              <div class="excel-grid">
+                <div class="excel-cell header">A</div><div class="excel-cell header">B</div><div class="excel-cell header">C</div>
+                <div class="excel-cell header">D</div><div class="excel-cell header">E</div><div class="excel-cell header">F</div>
+                <div class="excel-cell selected">Jan</div><div class="excel-cell">1450</div><div class="excel-cell">OK</div>
+                <div class="excel-cell">+3%</div><div class="excel-cell">...</div><div class="excel-cell">&#10003;</div>
+                <div class="excel-cell">Fev</div><div class="excel-cell selected">1820</div><div class="excel-cell">OK</div>
+                <div class="excel-cell">+5%</div><div class="excel-cell">...</div><div class="excel-cell">&#10003;</div>
+                <div class="excel-cell">Mar</div><div class="excel-cell">2100</div><div class="excel-cell selected">??</div>
+                <div class="excel-cell">-2%</div><div class="excel-cell">ERR</div><div class="excel-cell">&#10007;</div>
+              </div>
+            </div>
+            <div class="screen-content screen-sleep" id="screenSleep" style="display:none">
+              <span>&#128164;</span>
+              <small>ZZZZZ...</small>
+            </div>
+            <div class="screen-content screen-porn" id="screenPorn" style="display:none">
+              <div class="pornhub-logo">PORN<span>HUB</span></div>
+              <small>BUSCANDO...</small>
+            </div>
+            <div class="screen-content screen-bota" id="screenBota" style="display:none">
+              <div class="bota-logo">&#9733;</div>
+              <small>BOTAFOGO TV</small>
+            </div>
+            <div class="screen-content screen-idle" id="screenIdle">
+              <span>&#128421;</span>
+            </div>
+          </div>
+        </div>
+        <div class="monitor-stand"></div>
+        <div class="monitor-base"></div>
+        <div class="keyboard" id="kbEl"></div>
+      </div>
+
+      <div class="mouse" id="mouseEl"></div>
+
+      <div class="cans">
+        <div class="can blue"></div>
+        <div class="can red"></div>
+        <div class="can green"></div>
+      </div>
+
+      <div class="pizza-stack" id="pizzaStack">
+        <div class="pbox">&#127829;</div>
+      </div>
+
+      <div class="trash-pile" id="trashPile">&#128465;</div>
+
+      <div class="bed">
+        <div class="bed-frame">
+          <div class="bed-pillow"></div>
+          <div class="bed-blanket">&#9917;</div>
+        </div>
+        <div class="bed-legs">
+          <div class="bed-leg"></div>
+          <div class="bed-leg"></div>
+        </div>
+      </div>
+
+      <!-- CHARACTER -->
+      <div class="character" id="character" style="bottom:42%; left:350px;">
+        <div class="action-label" id="actionLabel" style="display:none"></div>
+        <div class="thought" id="thought"></div>
+        <div class="pc-head">
+          <div class="pc-hair"></div>
+          <div class="pc-eyes">
+            <div class="pc-eye" id="eyeL"></div>
+            <div class="pc-eye" id="eyeR"></div>
+          </div>
+          <div class="pc-mouth"></div>
+          <div class="pc-beard" id="beard"></div>
+        </div>
+        <div style="position:relative;display:flex;justify-content:center;margin-top:1px;">
+          <div class="pc-body">
+            <div class="pc-arms">
+              <div style="display:flex;flex-direction:column;align-items:center;">
+                <div class="pc-arm"></div><div class="pc-hand"></div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;">
+                <div class="pc-arm"></div><div class="pc-hand"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pc-legs">
+          <div style="display:flex;flex-direction:column;align-items:center;">
+            <div class="pc-leg"></div><div class="pc-shoe"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;">
+            <div class="pc-leg"></div><div class="pc-shoe"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="event-popup" id="eventPopup"></div>
+
+      <div class="bottom">
+        <button class="btn" id="btnCs" onclick="doAction('cs')">&#127918; CS [1]</button>
+        <button class="btn" id="btnWork" onclick="doAction('work')">&#128188; TRAB [2]</button>
+        <button class="btn" id="btnSleep" onclick="doAction('sleep')">&#128564; DORMIR [3]</button>
+        <button class="btn" id="btnEat" onclick="doAction('eat')">&#127829; FOOD [4]</button>
+        <button class="btn" id="btnPorn" onclick="doAction('porn')">&#128241; PH [5]</button>
+        <button class="btn" id="btnBota" onclick="doAction('bota')">&#9917; BOTA [6]</button>
+        <button class="speed-btn" id="speedBtn" onclick="toggleSpeed()">&#9193; 2x</button>
+        <div class="clock" id="clockWrap">DIA <span id="clockEl">08:00</span> &#9728;</div>
+      </div>
+    </div>
+
+    <!-- HUD -->
+    <div class="hud">
+      <div class="hud-title">&#9670; JELLY &#9670;</div>
+      <div class="char-info">
+        <div class="name">Ze do Quarto</div>
+        <div class="sub">Camisa Botafogo #1</div>
+        <div class="mood" id="moodEmoji">&#128528;</div>
+      </div>
+      <div class="day-box">
+        <div class="lbl">DIAS SEM SAIR</div>
+        <div class="num" id="dayCount">0</div>
+      </div>
+      <div class="needs">
+        <div class="needs-lbl">&#9654; NECESSIDADES</div>
+        <div class="need"><div class="need-top"><div class="need-name">&#127829; Fome</div><div class="need-pct" id="pFome">80%</div></div><div class="need-track"><div class="need-fill fill-fome" id="bFome" style="width:80%"></div></div></div>
+        <div class="need"><div class="need-top"><div class="need-name">&#128564; Sono</div><div class="need-pct" id="pSono">90%</div></div><div class="need-track"><div class="need-fill fill-sono" id="bSono" style="width:90%"></div></div></div>
+        <div class="need"><div class="need-top"><div class="need-name">&#127918; Vontade CS</div><div class="need-pct" id="pCs">30%</div></div><div class="need-track"><div class="need-fill fill-cs" id="bCs" style="width:30%"></div></div></div>
+        <div class="need"><div class="need-top"><div class="need-name">&#128241; Punheta</div><div class="need-pct" id="pPunheta">20%</div></div><div class="need-track"><div class="need-fill fill-punheta" id="bPunheta" style="width:20%"></div></div></div>
+        <div class="need"><div class="need-top"><div class="need-name">&#128176; Dinheiro</div><div class="need-pct" id="pDin">50%</div></div><div class="need-track"><div class="need-fill fill-din" id="bDin" style="width:50%"></div></div></div>
+        <div class="need"><div class="need-top"><div class="need-name">&#129504; Sanidade</div><div class="need-pct" id="pSan">95%</div></div><div class="need-track"><div class="need-fill fill-san" id="bSan" style="width:95%"></div></div></div>
+        <div class="need"><div class="need-top"><div class="need-name">&#128703; Higiene</div><div class="need-pct" id="pHig">15%</div></div><div class="need-track"><div class="need-fill fill-hig" id="bHig" style="width:15%"></div></div></div>
+      </div>
+      <div class="log" id="logBox">
+        <div class="log-title">&#9654; LOG</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+const S = {
+  fome:80, sono:90, cs:30, punheta:20,
+  dinheiro:50, sanidade:95, higiene:15,
+  days:0, hour:8, minute:0,
+  action:'idle', speed:1, kills:0,
+  pizzaBoxes:1, lastEvent:0, ticks:0,
+  running:false, gameover:false,
+  beardLevel:0, workedToday:false,
+  consecutiveWorkDays:0, totalWorkDays:0,
+  csHoursToday:0, botaGames:0,
+};
+
+const POSITIONS = {
+  cs:    {left:198, label:'JOGANDO CS'},
+  work:  {left:198, label:'TRABALHANDO'},
+  sleep: {left:540, label:'DORMINDO'},
+  eat:   {left:350, label:'COMENDO'},
+  porn:  {left:198, label:'PORNHUB'},
+  bota:  {left:198, label:'BOTAFOGO TV'},
+  idle:  {left:350, label:''},
+};
+
+const THOUGHTS = {
+  cs:['clutch or kick!','Rush B!','AWP ou AK?','HACKER!!!','ez game','rageando...','Global soon','ACE!'],
+  work:['planilha infinita...','zoom call 😴','deadline amanha','Stack Overflow','cafe acabou','bug no codigo'],
+  porn:['buscando...','nao acho','scroll...','15 abas abertas','3h perdidas','mais 5min'],
+  sleep:['zzz...','so mais 5min','amanha trabalho','sonhando com CS'],
+  eat:['iFood chegando!','finalmente 🍕','fome demais','cadê o motoboy?'],
+  bota:['FOGAO!','Vai Botafogo!','Gloria eterna!','Campeao!','Sofrimento...'],
+};
+
+const EVENTS = [
+  {msg:'BOTAFOGO GANHOU!\n+30 Sanidade',fn:()=>{S.sanidade+=30;},good:true},
+  {msg:'BOTAFOGO PERDEU...\n-25 Sanidade',fn:()=>{S.sanidade-=25;S.fome-=10;},good:false},
+  {msg:'IFOOD ATRASOU 2H!\n-15 Sanidade  -20 Fome',fn:()=>{S.sanidade-=15;S.fome-=20;},good:false},
+  {msg:'PC TRAVOU NO CS!!\n-25 Sanidade',fn:()=>{S.sanidade-=25;S.cs+=30;},good:false},
+  {msg:'AMIGOS CHAMARAM\nPRA SAIR...\nRecusou obvio.',fn:()=>{S.sanidade-=5;},good:false},
+  {msg:'3H NO PORNHUB\nSEM ACHAR O VIDEO',fn:()=>{S.punheta+=20;S.sanidade-=10;S.sono-=15;},good:false},
+  {msg:'ACHOU R$20\nNO BOLSO DA CALCA!',fn:()=>{S.dinheiro+=15;},good:true},
+  {msg:'INTERNET CAIU!\nPANICO TOTAL',fn:()=>{S.sanidade-=20;S.cs+=25;},good:false},
+  {msg:'MAE LIGOU\nPerguntando se ta vivo',fn:()=>{S.sanidade+=5;},good:true},
+  {msg:'FATURA DO CARTAO!\n-20 Dinheiro',fn:()=>{S.dinheiro-=20;},good:false},
+  {msg:'VIZINHO RECLAMOU\nDO BARULHO AS 3AM',fn:()=>{S.sanidade-=5;},good:false},
+];
+
+function clamp(v){return Math.max(0,Math.min(100,v));}
+function clampAll(){
+  S.fome=clamp(S.fome);S.sono=clamp(S.sono);S.cs=clamp(S.cs);
+  S.punheta=clamp(S.punheta);S.dinheiro=clamp(S.dinheiro);
+  S.sanidade=clamp(S.sanidade);S.higiene=clamp(S.higiene);
+}
+
+function setBar(id,val){
+  const b=document.getElementById('b'+id);
+  const p=document.getElementById('p'+id);
+  if(b){b.style.width=Math.round(val)+'%';b.classList.toggle('fill-crit',val<15);}
+  if(p)p.textContent=Math.round(val)+'%';
+}
+
+function updateBars(){
+  setBar('Fome',S.fome);setBar('Sono',S.sono);setBar('Cs',S.cs);
+  setBar('Punheta',S.punheta);setBar('Din',S.dinheiro);
+  setBar('San',S.sanidade);setBar('Hig',S.higiene);
+}
+
+function getMood(){
+  if(S.sanidade<15)return'\u{1F635}';
+  if(S.sono<15)return'\u{1F634}';
+  if(S.fome<10)return'\u{1F629}';
+  const avg=(S.sanidade+S.sono+S.fome)/3;
+  if(avg>70)return'\u{1F60E}';
+  if(avg>45)return'\u{1F610}';
+  return'\u{1F61F}';
+}
+
+function addLog(msg,cls='new'){
+  const box=document.getElementById('logBox');
+  const items=box.querySelectorAll('.log-item');
+  if(items.length>=6)items[items.length-1].remove();
+  const el=document.createElement('div');
+  el.className='log-item '+cls;
+  el.textContent='\u25B6 '+msg;
+  const first=box.querySelector('.log-item');
+  if(first)box.insertBefore(el,first);
+  else box.appendChild(el);
+}
+
+let thoughtTimer=null;
+function setThought(text){
+  const t=document.getElementById('thought');
+  t.textContent=text;t.style.opacity='1';
+  clearTimeout(thoughtTimer);
+  thoughtTimer=setTimeout(()=>t.style.opacity='0',3500);
+}
+
+function randomThought(action){
+  const arr=THOUGHTS[action];
+  if(arr)setThought(arr[Math.floor(Math.random()*arr.length)]);
+}
+
+function moveChar(action){
+  const pos=POSITIONS[action]||POSITIONS.idle;
+  const ch=document.getElementById('character');
+  ch.style.left=pos.left+'px';
+  const lbl=document.getElementById('actionLabel');
+  if(pos.label){lbl.textContent=pos.label;lbl.style.display='block';}
+  else lbl.style.display='none';
+}
+
+function showScreen(name){
+  ['CS','Work','Sleep','Porn','Bota','Idle'].forEach(s=>{
+    const el=document.getElementById('screen'+s);
+    if(el)el.style.display='none';
+  });
+  const t=document.getElementById('screen'+name);
+  if(t)t.style.display='flex';
+  const glow=document.getElementById('monitorGlow');
+  const glows={CS:'radial-gradient(ellipse,rgba(0,100,200,0.18) 0%,transparent 70%)',
+    Work:'radial-gradient(ellipse,rgba(0,150,80,0.12) 0%,transparent 70%)',
+    Sleep:'none',Porn:'radial-gradient(ellipse,rgba(255,100,0,0.15) 0%,transparent 70%)',
+    Bota:'radial-gradient(ellipse,rgba(232,197,71,0.12) 0%,transparent 70%)',
+    Idle:'radial-gradient(ellipse,rgba(50,50,50,0.1) 0%,transparent 70%)'};
+  glow.style.background=glows[name]||'none';
+}
+
+function setActiveBtn(id){
+  document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById(id);
+  if(el)el.classList.add('active');
+}
+
+function doAction(action){
+  if(!S.running||S.gameover)return;
+  S.action=action;
+
+  const btnMap={cs:'btnCs',work:'btnWork',sleep:'btnSleep',eat:'btnEat',porn:'btnPorn',bota:'btnBota'};
+  setActiveBtn(btnMap[action]||'');
+
+  const eyes=action==='sleep';
+  document.getElementById('eyeL').classList.toggle('sleepy',eyes);
+  document.getElementById('eyeR').classList.toggle('sleepy',eyes);
+
+  moveChar(action);
+  randomThought(action);
+
+  if(action==='cs'){
+    showScreen('CS');addLog('Abriu CS2','new');
+    S.csHoursToday+=3;
+  }else if(action==='work'){
+    showScreen('Work');addLog('Abriu Excel... \u{1F61E}','new');
+    S.workedToday=true;S.consecutiveWorkDays++;S.totalWorkDays++;
+  }else if(action==='sleep'){
+    showScreen('Sleep');addLog('Foi dormir','new');
+  }else if(action==='eat'){
+    showScreen('Idle');addLog('Pediu iFood \u{1F6F5}','new');
+    S.dinheiro=clamp(S.dinheiro-12);
+    S.pizzaBoxes=Math.min(S.pizzaBoxes+1,6);
+    renderPizzas();
+    setTimeout(()=>{
+      S.fome=clamp(S.fome+40);
+      addLog('\u{1F355} iFood chegou!','good');
+      updateBars();
+    },4000/S.speed);
+  }else if(action==='porn'){
+    showScreen('Porn');addLog('Abriu PornHub \u{1F648}','warn');
+  }else if(action==='bota'){
+    showScreen('Bota');addLog('Assistindo Botafogo','new');
+    S.botaGames++;
+    if(Math.random()>0.5){
+      S.sanidade=clamp(S.sanidade+25);
+      setTimeout(()=>addLog('BOTAFOGO GANHOU!!','good'),2000);
+    }else{
+      S.sanidade=clamp(S.sanidade-20);
+      setTimeout(()=>addLog('Botafogo perdeu...','warn'),2000);
+    }
+  }
+}
+
+function renderPizzas(){
+  const st=document.getElementById('pizzaStack');
+  st.innerHTML='';
+  for(let i=0;i<S.pizzaBoxes;i++){
+    const b=document.createElement('div');
+    b.className='pbox';b.textContent='\u{1F355}';
+    st.appendChild(b);
+  }
+}
+
+function showEvent(msg,good){
+  const el=document.getElementById('eventPopup');
+  el.textContent=msg;
+  el.className='event-popup show'+(good?' good':'');
+  setTimeout(()=>el.classList.remove('show'),4000);
+}
+
+function triggerEvent(){
+  const ev=EVENTS[Math.floor(Math.random()*EVENTS.length)];
+  ev.fn();clampAll();updateBars();
+  showEvent(ev.msg,ev.good);
+  addLog(ev.msg.split('\n')[0],ev.good?'good':'warn');
+}
+
+function updateClock(){
+  S.minute+=5;
+  if(S.minute>=60){S.minute=0;S.hour++;}
+  if(S.hour>=24){
+    S.hour=0;S.days++;
+    S.beardLevel=S.days;
+    S.csHoursToday=0;
+    if(!S.workedToday)S.consecutiveWorkDays=0;
+    S.workedToday=false;
+    document.getElementById('dayCount').textContent=S.days;
+  }
+  const h=String(S.hour).padStart(2,'0');
+  const m=String(S.minute).padStart(2,'0');
+  const night=S.hour<7||S.hour>=21;
+  document.getElementById('clockWrap').innerHTML='DIA <span id="clockEl">'+h+':'+m+'</span> '+(night?'\u{1F319}':'\u{2600}');
+  const win=document.getElementById('windowEl');
+  win.style.background=night?'#0a1020':'#4a7aaa';
+  document.querySelectorAll('.wp').forEach(w=>w.style.background=night?'#1a2a4a':'#6a9aca');
+
+  // Beard growth
+  const beard=document.getElementById('beard');
+  const bl=Math.min(S.beardLevel,15);
+  if(bl>0){beard.style.height=Math.min(bl+2,12)+'px';beard.style.opacity=Math.min(0.3+bl*0.05,0.8);}
+}
+
+function checkGameOver(){
+  let reason='';
+  if(S.fome<=0&&S.dinheiro<=0)reason='Morreu de fome! Sem dinheiro pra iFood...';
+  else if(S.sanidade<=0)reason='Perdeu a sanidade! Saiu pelado gritando RUSH B!';
+  else if(S.sono<=0)reason='Desmaiou no teclado. O corpo nao aguentou.';
+  if(reason){
+    S.gameover=true;
+    clearInterval(gameLoop);
+    document.getElementById('goReason').textContent=reason;
+    document.getElementById('goStats').textContent=
+      'Dias: '+S.days+' | Trabalhou: '+S.totalWorkDays+' | CS kills: '+S.kills+' | Botafogo: '+S.botaGames;
+    document.getElementById('gameoverOverlay').classList.add('show');
+  }
+}
+
+function tick(){
+  S.ticks++;
+  updateClock();
+
+  // Needs decay
+  S.fome-=0.4;
+  S.sono-=S.action==='sleep'?-3:0.35;
+  S.sanidade-=0.08;
+  S.higiene-=0.01;
+  S.cs+=0.5;
+  S.punheta+=0.2;
+
+  // Action effects
+  if(S.action==='cs'){S.cs-=2;S.sono-=0.2;S.fome-=0.15;}
+  if(S.action==='work'){S.dinheiro+=0.8;S.sanidade-=0.15;S.cs+=0.3;}
+  if(S.action==='sleep'){S.fome-=0.1;S.sanidade+=0.15;}
+  if(S.action==='porn'){S.punheta-=2.5;S.sanidade-=0.4;S.higiene-=0.03;}
+  if(S.action==='bota'){S.sanidade+=0.1;}
+
+  clampAll();updateBars();
+  document.getElementById('moodEmoji').textContent=getMood();
+
+  // Auto behavior
+  if(S.sono<8&&S.action!=='sleep'){doAction('sleep');addLog('DESMAIOU de sono!','warn');}
+  if(S.fome<5&&S.dinheiro>5&&S.action!=='eat'){doAction('eat');addLog('FOME CRITICA!','warn');}
+  if(S.punheta>92&&S.action!=='porn'){doAction('porn');addLog('Necessidade irresistivel...','warn');}
+  if(S.action==='sleep'&&S.sono>85){doAction('cs');addLog('Acordou. Abriu CS.','new');}
+
+  // CS effects
+  if(S.action==='cs'&&Math.random()<0.08){
+    const fl=document.getElementById('csFlash');
+    fl.style.opacity='0.5';setTimeout(()=>fl.style.opacity='0',80);
+    S.kills++;document.getElementById('csKills').textContent=S.kills+' KILLS';
+  }
+  if(S.action==='cs'){
+    const hp=60+Math.floor(Math.random()*40);
+    document.getElementById('csHP').textContent='\u2665'.repeat(Math.ceil(hp/33))+' '+hp+'hp';
+  }
+
+  // Random thoughts
+  if(S.ticks%10===0)randomThought(S.action);
+
+  // Random events
+  S.lastEvent++;
+  if(S.lastEvent>80+Math.floor(Math.random()*40)){S.lastEvent=0;triggerEvent();}
+
+  // Trash grows
+  if(S.ticks%60===0&&S.days>0){
+    const t=document.getElementById('trashPile');
+    const extras=['\u{1F4E6}','\u{1F964}','\u{1F9E6}','\u{1F355}','\u{1F37A}'];
+    t.innerHTML+=extras[Math.floor(Math.random()*extras.length)];
+  }
+
+  // RGB keyboard
+  if(S.ticks%3===0){
+    document.querySelectorAll('.k').forEach(k=>{
+      k.classList.toggle('lit',Math.random()<0.2);
+      if(k.classList.contains('lit')){
+        const hue=Math.floor(Math.random()*360);
+        k.style.background='hsl('+hue+',100%,50%)';
+      }else{k.style.background='#2e2e2e';}
+    });
+  }
+
+  checkGameOver();
+}
+
+function toggleSpeed(){
+  S.speed=S.speed===1?3:S.speed===3?6:1;
+  const lbl={1:'1x',3:'3x',6:'6x'};
+  document.getElementById('speedBtn').textContent='\u23E9 '+(S.speed===1?'2x':S.speed===3?'6x':'1x');
+  document.getElementById('speedLabel').textContent='VELOCIDADE: '+lbl[S.speed];
+  document.getElementById('speedBtn').classList.toggle('on',S.speed>1);
+  restartLoop();
+}
+
+function resetGame(){
+  Object.assign(S,{fome:80,sono:90,cs:30,punheta:20,dinheiro:50,sanidade:95,higiene:15,
+    days:0,hour:8,minute:0,action:'idle',kills:0,pizzaBoxes:1,lastEvent:0,ticks:0,
+    running:true,gameover:false,speed:1,beardLevel:0,workedToday:false,
+    consecutiveWorkDays:0,totalWorkDays:0,csHoursToday:0,botaGames:0});
+  document.getElementById('gameoverOverlay').classList.remove('show');
+  document.getElementById('dayCount').textContent='0';
+  document.getElementById('trashPile').innerHTML='\u{1F5D1}';
+  document.getElementById('beard').style.height='0px';
+  document.getElementById('beard').style.opacity='0';
+  renderPizzas();updateBars();
+  showScreen('Idle');moveChar('idle');
+  document.getElementById('actionLabel').style.display='none';
+  document.getElementById('logBox').querySelectorAll('.log-item').forEach(e=>e.remove());
+  addLog('Simulacao iniciada. Dia 0.','good');
+  restartLoop();
+}
+
+let gameLoop=null;
+function restartLoop(){
+  clearInterval(gameLoop);
+  gameLoop=setInterval(tick,1200/S.speed);
+}
+
+// Build keyboard
+(function(){
+  const kb=document.getElementById('kbEl');
+  for(let i=0;i<48;i++){
+    const k=document.createElement('div');
+    k.className='k';kb.appendChild(k);
+  }
+})();
+
+// Input
+document.addEventListener('keydown',e=>{
+  if(!S.running)return;
+  const map={'1':'cs','2':'work','3':'sleep','4':'eat','5':'porn','6':'bota'};
+  if(map[e.key])doAction(map[e.key]);
+  else if(e.key==='+'||e.key==='=')toggleSpeed();
+  else if(e.key==='-')toggleSpeed();
+});
+
+// Start / Restart
+document.getElementById('startBtn').addEventListener('click',()=>{
+  document.getElementById('menuOverlay').classList.add('hide');
+  resetGame();
+});
+document.getElementById('restartBtn').addEventListener('click',resetGame);
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!S.running&&!S.gameover){
+    document.getElementById('menuOverlay').classList.add('hide');
+    resetGame();
+  }
+  if((e.key==='r'||e.key==='R')&&S.gameover)resetGame();
+});
+</script>
 </body>
 </html>

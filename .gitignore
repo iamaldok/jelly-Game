@@ -1,4 +1,5 @@
 .claude/
 main.py
+game.js
 node_modules/
 .vercel/
