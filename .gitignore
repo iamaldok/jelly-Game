@@ -1,0 +1,4 @@
+.claude/
+main.py
+node_modules/
+.vercel/
